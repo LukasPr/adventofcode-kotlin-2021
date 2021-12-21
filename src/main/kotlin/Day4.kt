@@ -1,34 +1,70 @@
 fun main() {
-    println(test(readInputFile("src/main/resources/day4-input.txt")))
+    val (numbersToDraw, bingoBoards) = extractData(readInputFile("src/main/resources/day4-input.txt"))
+
+    for (n in numbersToDraw.indices) {
+        val drawnNumbers = numbersToDraw.take(n)
+        val winner = bingoBoards.firstOrNull {
+            it.hasBingo(drawnNumbers)
+        }
+        if (winner != null) {
+            println("We have a Winner!!!")
+            println(winner.toString(drawnNumbers))
+            println("Score is: ${winner.score(drawnNumbers)}")
+            break
+        }
+    }
 }
 
-fun test(input: List<String>): List<List<List<String>>> {
+fun extractData(input: List<String>): Pair<List<Int>, List<BingoBoard>> {
     val numbersToDraw = input[0].split(",")
         .map { it.toInt() }
 
     val bingoBoards = input.drop(1)
         .chunked(6)
-        .map { it -> it.filterNot { it.isBlank() } }
-        .map { it ->
-            it.map { it ->
-                it.split(" ").filterNot { it.isBlank() }
-            }
+        .map { it.filterNot(String::isBlank) }
+        .map {
+            BingoBoard(it.map {
+                it.trim().split("""\s+""".toRegex()).map(String::toInt)
+            })
         }
-    println(numbersToDraw)
-
-
-    return bingoBoards
+    return numbersToDraw to bingoBoards
 }
 
-data class SingleField(val number: Int, val matching: Boolean = false)
+data class BingoBoard(val fields: List<List<Int>>) {
+    fun hasBingo(drawnNumbers: Collection<Int>): Boolean {
 
-data class BingoBoard(val fields: List<MutableList<SingleField>>){
-    val row = fields[0].indices
-    val column = fields.indices
+        return (rows() + cols()).any { rowOrColumn ->
+            rowOrColumn.all { number -> number in drawnNumbers }
+        }
+    }
 
-    companion object {
-        fun fromCollection(coll: List<List<Int>>): BingoBoard {
-            return BingoBoard(coll.map { row -> row.map { field -> SingleField(field) }.toMutableList() })
+    fun rows(): List<List<Int>> = fields
+    fun cols(): List<List<Int>> = fields.first().indices.map { col -> fields.map { it[col] } }
+
+    fun score(drawnNumbers: Collection<Int>): Int {
+        val sumOfAllUnmarkedNumbers = (fields.flatten() - drawnNumbers).sum()
+        return sumOfAllUnmarkedNumbers * drawnNumbers.last()
+    }
+
+    override fun toString(): String = toString(emptyList())
+
+    fun toString(drawnNumbers: Collection<Int>): String {
+        return fields.joinToString(separator = System.lineSeparator(), postfix = System.lineSeparator()) { it ->
+            it.joinToString(separator = " ") { number ->
+                val n = number.toString().padStart(2)
+                if (number in drawnNumbers) "$ANSI_RED$n$ANSI_RESET" else n
+            }
         }
     }
 }
+
+
+const val ANSI_RESET = "\u001B[0m"
+const val ANSI_BLACK = "\u001B[30m"
+const val ANSI_RED = "\u001B[31m"
+const val ANSI_GREEN = "\u001B[32m"
+const val ANSI_YELLOW = "\u001B[33m"
+const val ANSI_BLUE = "\u001B[34m"
+const val ANSI_PURPLE = "\u001B[35m"
+const val ANSI_CYAN = "\u001B[36m"
+const val ANSI_WHITE = "\u001B[37m"
